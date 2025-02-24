@@ -1,0 +1,9 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 2.0.17
+_src_path: gh:algorandfoundation/algokit-fullstack-template
+author_email: jacopo851@gmail.com
+author_name: VKappaKV
+contract_name: AMM
+preset_name: starter
+project_name: AU-AMM
+

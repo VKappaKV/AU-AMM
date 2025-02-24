@@ -1,0 +1,133 @@
+{
+  "name": "AMM",
+  "desc": "",
+  "methods": [
+    {
+      "name": "createApplication",
+      "args": [],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "bootstrap",
+      "args": [
+        {
+          "name": "seed",
+          "type": "pay"
+        },
+        {
+          "name": "aAsset",
+          "type": "uint64"
+        },
+        {
+          "name": "bAsset",
+          "type": "uint64"
+        },
+        {
+          "name": "maxFee",
+          "type": "uint64"
+        }
+      ],
+      "returns": {
+        "type": "uint64"
+      }
+    },
+    {
+      "name": "mint",
+      "args": [
+        {
+          "name": "aXfer",
+          "type": "axfer"
+        },
+        {
+          "name": "bXfer",
+          "type": "axfer"
+        },
+        {
+          "name": "poolAsset",
+          "type": "uint64"
+        },
+        {
+          "name": "aAsset",
+          "type": "uint64"
+        },
+        {
+          "name": "bAsset",
+          "type": "uint64"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "burn",
+      "args": [
+        {
+          "name": "poolXfer",
+          "type": "axfer"
+        },
+        {
+          "name": "poolAsset",
+          "type": "uint64"
+        },
+        {
+          "name": "aAsset",
+          "type": "uint64"
+        },
+        {
+          "name": "bAsset",
+          "type": "uint64"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "swap",
+      "args": [
+        {
+          "name": "swapXfer",
+          "type": "axfer"
+        },
+        {
+          "name": "aAsset",
+          "type": "uint64"
+        },
+        {
+          "name": "bAsset",
+          "type": "uint64"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "createBidderEscrow",
+      "args": [
+        {
+          "name": "payMBR",
+          "type": "pay"
+        }
+      ],
+      "returns": {
+        "type": "address"
+      }
+    },
+    {
+      "name": "setNewFee",
+      "args": [
+        {
+          "name": "currentFee",
+          "type": "uint64"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    }
+  ]
+}
