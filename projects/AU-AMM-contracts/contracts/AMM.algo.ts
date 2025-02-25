@@ -148,7 +148,11 @@ export class AMM extends Contract {
 
     this.doAxfer(this.app.address, this.txn.sender, outId, toSwap);
 
-    this.doAxfer(this.app.address, this.poolManager.value, inId, fees);
+    const depositTo = this.biddersDepositRegistry(this.poolManager.value).exists
+      ? this.biddersDepositRegistry(this.poolManager.value).value
+      : this.poolManager.value;
+
+    this.doAxfer(this.app.address, depositTo, inId, fees);
 
     this.ratio.value = this.computeRatio();
   }
