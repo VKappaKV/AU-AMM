@@ -3,7 +3,15 @@ import { PuppetAddress } from './puppetAddress.algo';
 
 const TOTAL_SUPPLY = 10 ** 16;
 const SCALE = 1_000;
-// const DELAY = 10;
+const DELAY = 10;
+// [start, end, bidder, bid, deposit]
+type BidObj = {
+  start: uint64;
+  end: uint64;
+  bidder: Address;
+  bid: uint64;
+  deposit: uint64;
+};
 
 export class AMM extends Contract {
   default_manager = GlobalStateKey<Address>({ key: 'default_manager' });
@@ -22,11 +30,9 @@ export class AMM extends Contract {
 
   poolManager = GlobalStateKey<Address>({ key: 'pool_manager' });
 
-  topBiddersList = GlobalStateKey<StaticArray<Address, 2>>({ key: 'top_bidders_list' });
+  biddersDepositRegistry = BoxMap<Address, Address>({ prefix: 'bidders_deposit_registry' });
 
-  biddersRegistry = BoxMap<Address, Address>({ prefix: 'bidders_registry' });
-
-  highestBidAmount = GlobalStateKey<uint64>({ key: 'bid_amount' });
+  auctionState = GlobalStateKey<BidObj>({ key: 'auction_state' });
 
   createApplication(): void {
     this.default_manager.value = this.txn.sender;
@@ -53,12 +59,10 @@ export class AMM extends Contract {
   }
 
   mint(aXfer: AssetTransferTxn, bXfer: AssetTransferTxn, poolAsset: AssetID, aAsset: AssetID, bAsset: AssetID): void {
-    /// well formed mint
     assert(aAsset === this.assetA.value);
     assert(bAsset === this.assetB.value);
     assert(poolAsset === this.poolToken.value);
 
-    /// valid asset A axfer
     verifyAssetTransferTxn(aXfer, {
       sender: this.txn.sender,
       assetAmount: { greaterThan: 0 },
@@ -66,7 +70,6 @@ export class AMM extends Contract {
       xferAsset: aAsset,
     });
 
-    /// valid asset B axfer
     verifyAssetTransferTxn(bXfer, {
       sender: this.txn.sender,
       assetAmount: { greaterThan: 0 },
@@ -95,12 +98,10 @@ export class AMM extends Contract {
   }
 
   burn(poolXfer: AssetTransferTxn, poolAsset: AssetID, aAsset: AssetID, bAsset: AssetID): void {
-    /// well formed burn
     assert(poolAsset === this.poolToken.value);
     assert(aAsset === this.assetA.value);
     assert(bAsset === this.assetB.value);
 
-    /// valid pool axfer
     verifyAssetTransferTxn(poolXfer, {
       sender: this.txn.sender,
       assetAmount: { greaterThan: 0 },
@@ -121,7 +122,6 @@ export class AMM extends Contract {
   }
 
   swap(swapXfer: AssetTransferTxn, aAsset: AssetID, bAsset: AssetID): void {
-    /// well formed swap
     assert(aAsset === this.assetA.value);
     assert(bAsset === this.assetB.value);
 
@@ -174,15 +174,81 @@ export class AMM extends Contract {
     this.doOptIn(this.assetA.value, bidderPuppetAccount);
     this.doOptIn(this.assetB.value, bidderPuppetAccount);
 
-    this.biddersRegistry(this.txn.sender).value = bidderPuppetAccount;
+    this.biddersDepositRegistry(this.txn.sender).value = bidderPuppetAccount;
 
     return bidderPuppetAccount;
   }
 
-  /*   bid(lpAsset: AssetID, rounds: uint64, bid: uint64, start: uint64): void {
+  bid(lpAsset: AssetID, rounds: uint64, bid: uint64, start: uint64, depositTxn: AssetTransferTxn): void {
     // check if bid is set correctly;
+
+    assert(globals.round + DELAY < start, 'Cannot bid before the 10 round delay from current round');
+    assert(rounds > 10, 'Rounds must be greater than 10');
+    assert(bid > 0, 'Bid must be greater than 0');
+    assert(lpAsset === this.poolToken.value, 'Invalid LP asset');
+
+    verifyAssetTransferTxn(depositTxn, {
+      assetReceiver: this.app.address,
+      xferAsset: this.poolToken.value,
+      assetAmount: { greaterThan: 0 },
+    });
+
+    const totalDeposit = depositTxn.assetAmount;
+    assert(totalDeposit >= bid * rounds, 'Need to deposit enough to keep the bid for all rounds declared');
     // check if the bid for the given starting round is winning;
-  } */
+
+    const {
+      start: currentBidStartedAt,
+      end: currentBidEndsAt,
+      bidder: currentBidder,
+      bid: currentBid,
+      deposit: currentBidderDeposit,
+    } = this.auctionState.value;
+
+    // if latest bid is outdated, quick update the state
+    if (currentBidEndsAt < globals.round) {
+      this.auctionState.value = {
+        start,
+        end: start + rounds,
+        bidder: this.txn.sender,
+        bid,
+        deposit: totalDeposit,
+      };
+      return;
+    }
+    if (currentBidStartedAt > start) {
+      this.auctionState.value = {
+        start,
+        end: start + rounds,
+        bidder: this.txn.sender,
+        bid,
+        deposit: totalDeposit,
+      };
+
+      // refund the deposit to previous bidder
+      const toRefund = currentBidderDeposit - currentBid * (currentBidEndsAt - globals.round);
+      this.doAxfer(this.app.address, currentBidder, lpAsset, toRefund);
+    }
+    if (currentBid < bid) {
+      this.auctionState.value = {
+        start,
+        end: start + rounds,
+        bidder: this.txn.sender,
+        bid,
+        deposit: totalDeposit,
+      };
+
+      // refund the deposit to previous bidder
+      const toRefund = currentBidderDeposit - currentBid * (currentBidEndsAt - globals.round);
+      this.doAxfer(this.app.address, currentBidder, lpAsset, toRefund);
+    }
+  }
+
+  setManager(manager: Address): void {
+    const { start, bidder } = this.auctionState.value;
+    assert(manager === bidder && start < globals.round, 'Only the current bidder can be set as manager');
+    this.poolManager.value = manager;
+  }
 
   setNewFee(currentFee: uint64): void {
     verifyTxn(this.txn, {
