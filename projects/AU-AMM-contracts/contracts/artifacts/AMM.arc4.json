@@ -118,6 +118,46 @@
       }
     },
     {
+      "name": "bid",
+      "args": [
+        {
+          "name": "lpAsset",
+          "type": "uint64"
+        },
+        {
+          "name": "rounds",
+          "type": "uint64"
+        },
+        {
+          "name": "bid",
+          "type": "uint64"
+        },
+        {
+          "name": "start",
+          "type": "uint64"
+        },
+        {
+          "name": "depositTxn",
+          "type": "axfer"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
+      "name": "setManager",
+      "args": [
+        {
+          "name": "manager",
+          "type": "address"
+        }
+      ],
+      "returns": {
+        "type": "void"
+      }
+    },
+    {
       "name": "setNewFee",
       "args": [
         {

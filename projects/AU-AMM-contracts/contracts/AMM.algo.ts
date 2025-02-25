@@ -36,7 +36,7 @@ export class AMM extends Contract {
 
   createApplication(): void {
     this.default_manager.value = this.txn.sender;
-    this.currentFee.value = 5;
+    this.currentFee.value = 50;
   }
 
   bootstrap(seed: PayTxn, aAsset: AssetID, bAsset: AssetID, maxFee: uint64): AssetID {
@@ -201,56 +201,42 @@ export class AMM extends Contract {
     assert(totalDeposit >= bid * rounds, 'Need to deposit enough to keep the bid for all rounds declared');
     // check if the bid for the given starting round is winning;
 
-    const {
-      start: currentBidStartedAt,
-      end: currentBidEndsAt,
-      bidder: currentBidder,
-      bid: currentBid,
-      deposit: currentBidderDeposit,
-    } = this.auctionState.value;
+    const state = this.auctionState.value;
+
+    const bidding: BidObj = {
+      start: start,
+      end: start + rounds,
+      bidder: this.txn.sender,
+      bid: bid,
+      deposit: totalDeposit,
+    };
 
     // if latest bid is outdated, quick update the state
-    if (currentBidEndsAt < globals.round) {
-      this.auctionState.value = {
-        start,
-        end: start + rounds,
-        bidder: this.txn.sender,
-        bid,
-        deposit: totalDeposit,
-      };
+    if (state.end < globals.round) {
+      this.auctionState.value = bidding;
       return;
     }
-    if (currentBidStartedAt > start) {
-      this.auctionState.value = {
-        start,
-        end: start + rounds,
-        bidder: this.txn.sender,
-        bid,
-        deposit: totalDeposit,
-      };
+    if (state.start > start) {
+      this.auctionState.value = bidding;
 
       // refund the deposit to previous bidder
-      const toRefund = currentBidderDeposit - currentBid * (currentBidEndsAt - globals.round);
-      this.doAxfer(this.app.address, currentBidder, lpAsset, toRefund);
+      const toRefund = state.deposit - state.bid * (state.end - globals.round);
+      this.doAxfer(this.app.address, state.bidder, lpAsset, toRefund);
     }
-    if (currentBid < bid) {
-      this.auctionState.value = {
-        start,
-        end: start + rounds,
-        bidder: this.txn.sender,
-        bid,
-        deposit: totalDeposit,
-      };
+    if (state.bid < bid) {
+      this.auctionState.value = bidding;
 
       // refund the deposit to previous bidder
-      const toRefund = currentBidderDeposit - currentBid * (currentBidEndsAt - globals.round);
-      this.doAxfer(this.app.address, currentBidder, lpAsset, toRefund);
+      const toRefund = state.deposit - state.bid * (state.end - globals.round);
+      this.doAxfer(this.app.address, state.bidder, lpAsset, toRefund);
     }
   }
 
   setManager(manager: Address): void {
-    const { start, bidder } = this.auctionState.value;
-    assert(manager === bidder && start < globals.round, 'Only the current bidder can be set as manager');
+    assert(
+      manager === this.auctionState.value.bidder && this.auctionState.value.start < globals.round,
+      'Only the current bidder can be set as manager'
+    );
     this.poolManager.value = manager;
   }
 
